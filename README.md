@@ -7,3 +7,5 @@ I still believe there is an edge to be had in markets that have fewer eyeballs o
 Either way, this takes a look at arbitraging political betting markets in the run up to the US Presidential Elections in November; taking a look at prices changes on Betfair Exchange (the most liquid venue), and then scrapes oddschecker for the fixed-odds offered by each bookmaker in order to identify any mispricing opportunities.
 
 Due to the nature of oddschecker's website, the script uses Selenium, loading each odds table in a concurrent thread, and comparing them to the Betfair odds.
+
+Cosine similarity has been used in an attempt of automating matching the Betfair market name to the oddschecker name, but the matching isn't perfect and so a manual markets.csv has been created and can be amended going forward to include/exclude more markets.
