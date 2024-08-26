@@ -9,3 +9,13 @@ Either way, this takes a look at arbitraging political betting markets in the ru
 Due to the nature of oddschecker's website, the script uses Selenium, loading each odds table in a concurrent thread, and comparing them to the Betfair odds.
 
 Cosine similarity has been used in an attempt of automating matching the Betfair market name to the oddschecker name, but the matching isn't perfect and so a manual markets.csv has been created and can be amended going forward to include/exclude more markets.
+
+The betting tables for Betfair and Oddschecker are then matched by the markets mapping and then the betting selections are matched using fuzzy match due to the names not always exactly aligning. 
+
+One of the arbitrage methods with this data is to simply find occasions when you're able to lay on betfair at a lower price than you can back the bet through a bookmaker on oddschecker. An example of this is below where you're able to bet on Republicans in Pennsylvania and Arizona at 2.2 and 2 and lay at 2.04 and 1.91 respectively. We're able to extract the size available to lay at the best price from Betfair (assuming that this will generally be the liquidity limiting factor rather than the amount available to back at the bookmaker) and then determine the amount we should back and the guaranteed profit from making the bet.
+
+
+| Market Name   | Selection Name   |   Odds to Lay Ratio |   Best Back Price |   Best Lay Price |   Best Lay Size |   Best Odds | Best Bookmaker   | URL                                                                            |
+|:--------------|:-----------------|--------------------:|------------------:|-----------------:|----------------:|------------:|:-----------------|:-------------------------------------------------------------------------------|
+| Pennsylvania  | Republicans      |             1.04762 |              2.04 |             2.1  |           31.48 |         2.2 | S6               | https://www.oddschecker.com/politics/us-politics/us-state-betting/pennsylvania |
+| Arizona       | Republicans      |             1.04712 |              1.9  |             1.91 |           11.95 |         2   | S6               | https://www.oddschecker.com/politics/us-politics/us-state-betting/arizona      |
