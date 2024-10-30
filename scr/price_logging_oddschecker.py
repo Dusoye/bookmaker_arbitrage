@@ -10,8 +10,100 @@ import ast
 from betfairlightweight import APIClient
 from betfairlightweight import filters
 from dotenv import load_dotenv
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from bs4 import BeautifulSoup
+from datetime import datetime, timezone
 
 load_dotenv()
+
+# Oddschecker data fetching function
+def get_oddschecker_data(url, user_agent):
+    chrome_options = Options()
+    chrome_options.add_argument(f'user-agent={user_agent}')
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+
+    service = Service('/usr/local/bin/chromedriver')  # Adjust the path if necessary
+    #service = Service("/opt/homebrew/bin/chromedriver")
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    try:
+        # Navigate to the specific oddschecker page
+        driver.get(url)
+
+        # Wait for the page to load
+        time.sleep(6) 
+
+        # Get the page source
+        page_source = driver.page_source
+
+        # Parse the HTML content using BeautifulSoup
+        soup = BeautifulSoup(page_source, 'html.parser')
+
+        # Odds table has id "t1"
+        odds_table = soup.find('tbody', id='t1')
+
+        if not odds_table:
+            print(f"No odds table found for URL: {url}")
+            return None  # Skip this URL if the table isn't found
+
+        # Extract each row and the data within
+        odds_data = []
+        bookmakers_set = set()
+
+        for row in odds_table.find_all('tr'):
+            bet_name = row.find('a', class_='popup').text.strip() 
+            odds_dict = {'bet_name': bet_name}
+            
+            # Find all td elements with odds information
+            for td in row.find_all('td', class_=lambda x: x and ('o' in x.split() or 'bs' in x.split())): 
+                bookmaker = td.get('data-bk')  # Extract the bookmaker name
+                decimal_odds = td.get('data-odig')  # Extract the decimal odds value
+                if bookmaker and decimal_odds:  # Only add if both are present
+                    odds_dict[bookmaker] = float(decimal_odds)  # Convert odds to float
+                    bookmakers_set.add(bookmaker)
+            
+            odds_data.append(odds_dict)
+
+        # Create a DataFrame with all bookmakers as columns
+        df = pd.DataFrame(odds_data)
+
+        # Ensure all bookmakers are columns, even if some are missing in certain rows
+        df = df.reindex(columns=['bet_name'] + sorted(bookmakers_set))
+
+        # Add additional columns
+        df['timestamp'] = datetime.now(timezone.utc).isoformat()
+        #df['url'] = url
+
+        return df
+    finally:
+        # Close the browser
+        driver.quit()
+
+# Asynchronous function to fetch Oddschecker data periodically
+async def fetch_oddschecker_data_periodically(interval, url, user_agent):
+    loop = asyncio.get_event_loop()
+    oddschecker_csv = 'oddschecker_data.csv'
+
+    # Check if CSV file exists; if not, write headers on first data fetch
+    header_written = os.path.isfile(oddschecker_csv)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        while True:
+            # Run get_oddschecker_data in a separate thread
+            data = await loop.run_in_executor(executor, get_oddschecker_data, url, user_agent)
+            print(f"Oddschecker data fetched at {datetime.now(timezone.utc).isoformat()}")
+
+            # Append data to CSV
+            if data is not None and not data.empty:
+                data.to_csv(oddschecker_csv, mode='a', header=not header_written, index=False)
+                header_written = True  # Set header_written to True after first write
+
+            await asyncio.sleep(interval)
 
 # Polymarket data fetching function
 def get_polymarket_data():
@@ -21,7 +113,7 @@ def get_polymarket_data():
     market_data = []
     for market in response:
         overall_data = {
-            'timestamp': datetime.datetime.now(datetime.UTC).isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'market_id': market.get('id', 'N/A'),
             'market_name': market.get('title', 'N/A'),
             #'End Date': market.get('endDate', 'N/A'),
@@ -77,7 +169,7 @@ async def fetch_polymarket_data_periodically(interval):
         while True:
             # Run get_polymarket_data in a separate thread
             data = await loop.run_in_executor(executor, get_polymarket_data)
-            print(f"Polymarket data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
+            print(f"Polymarket data fetched at {datetime.now(timezone.utc).isoformat()}")
 
             # Append data to CSV
             if not data.empty:
@@ -113,7 +205,7 @@ def get_betfair_data(client):
                 if str(runner.selection_id) not in selection_ids:
                     continue 
                 runner_data = {
-                    'timestamp': datetime.datetime.now(datetime.UTC).isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'market_id': market.market_id,
                     'market_name': market.market_name,
                     'bet_id': runner.selection_id,
@@ -151,7 +243,7 @@ async def fetch_betfair_data_periodically(client, interval):
         while True:
             # Run get_betfair_data in a separate thread
             data = await loop.run_in_executor(executor, get_betfair_data, client)
-            print(f"Betfair data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
+            print(f"Betfair data fetched at {datetime.now(timezone.utc).isoformat()}")
 
             # Append data to CSV
             if not data.empty:
@@ -180,7 +272,7 @@ def get_predictit_data():
         return pd.DataFrame()  # Return an empty DataFrame
 
     # Extract data
-    timestamp = datetime.datetime.now(datetime.UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     market_name = market_data.get('name', 'N/A')
     contracts = market_data.get('contracts', [])
 
@@ -226,43 +318,43 @@ async def fetch_predictit_data_periodically(interval):
         while True:
             # Run get_predictit_data in a separate thread
             data = await loop.run_in_executor(executor, get_predictit_data)
-            print(f"PredictIt data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
+            print(f"PredictIt data fetched at {datetime.now(timezone.utc).isoformat()}")
 
             # Append data to CSV
             if not data.empty:
                 data.to_csv(predictit_csv, mode='a', header=False, index=False)
 
             await asyncio.sleep(interval)
-            
-# Main function to run both streams
+
+# Main function to run all tasks
 def main():
-    # Polymarket asset IDs
-    polymarket_assets_ids = [
-        "69236923620077691027083946871148646972011131466059644796654161903044970987404",
-        "21742633143463906290569050155826241533067272736897614950488156847949938836455"
-    ]
+    # Oddschecker parameters
+    oddschecker_url = "https://www.oddschecker.com/politics/us-politics/us-presidential-election/winner"
+    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."
 
     # Betfair credentials (replace with your actual credentials)
     app_key = os.getenv("BF_API_KEY")
     username = os.getenv("BF_LOGIN")
     password = os.getenv("BF_PASS")
     certs_path = 'certs'  # Update with your certificate path
- 
+
     # Initialize Betfair client
     client = APIClient(username, password, app_key=app_key, certs=certs_path)
     client.login()
 
     # Define the intervals (in seconds) to fetch data
-    betfair_interval = 60  # Fetch Betfair data every 60 seconds
-    polymarket_interval = 60  # Fetch Polymarket data every 60 seconds
-    predictit_interval = 60  # Fetch PredictIt data every 60 seconds
+    betfair_interval = 60      # Fetch Betfair data every 60 seconds
+    polymarket_interval = 60   # Fetch Polymarket data every 60 seconds
+    predictit_interval = 60    # Fetch PredictIt data every 60 seconds
+    oddschecker_interval = 60  # Fetch Oddschecker data every 60 seconds
 
-    # Run both tasks in the asyncio event loop
+    # Run all tasks in the asyncio event loop
     loop = asyncio.get_event_loop()
     tasks = [
         fetch_polymarket_data_periodically(polymarket_interval),
         fetch_betfair_data_periodically(client, betfair_interval),
-        fetch_predictit_data_periodically(predictit_interval)
+        fetch_predictit_data_periodically(predictit_interval),
+        fetch_oddschecker_data_periodically(oddschecker_interval, oddschecker_url, user_agent)
     ]
     try:
         loop.run_until_complete(asyncio.gather(*tasks))
