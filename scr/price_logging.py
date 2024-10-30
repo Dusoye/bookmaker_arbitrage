@@ -30,6 +30,10 @@ def get_polymarket_data():
             'overall_volume_24hr': float(market.get('volume24hr', 0)),
         }
         for bet in market.get('markets', []):
+            bet_id = bet.get('id')
+            if bet_id not in ['253591', '253597']:
+                continue  # Skip bets not in the specified list
+
             outcome_prices_str = bet.get('outcomePrices', '["N/A", "N/A"]')
             try:
                 outcome_prices = ast.literal_eval(outcome_prices_str)
@@ -84,6 +88,7 @@ async def fetch_polymarket_data_periodically(interval):
 # Betfair data fetching function
 def get_betfair_data(client):
     market_id = '1.176878927'  # The specific market ID you want to fetch data for
+    selection_ids = ['10874213', '12126964']
 
     # Fetch market catalogue for the specific market ID
     market_catalogues = client.betting.list_market_catalogue(
@@ -105,6 +110,8 @@ def get_betfair_data(client):
         if market_books:
             market_book = market_books[0]
             for runner in market_book.runners:
+                if str(runner.selection_id) not in selection_ids:
+                    continue 
                 runner_data = {
                     'timestamp': datetime.datetime.now(datetime.UTC).isoformat(),
                     'market_id': market.market_id,
@@ -158,6 +165,7 @@ def get_predictit_data():
     response = requests.get(url)
     data = response.json()
 
+    bet_ids = [27485, 27487]
     market_id = 7456
 
     # Find the market with the specified ID
@@ -178,6 +186,8 @@ def get_predictit_data():
 
     predictit_data = []
     for contract in contracts:
+        if contract.get('id') not in bet_ids:
+            continue
         contract_data = {
             'timestamp': timestamp,
             'market_id': market_id,
