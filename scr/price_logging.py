@@ -149,13 +149,27 @@ async def fetch_betfair_data_periodically(client, interval):
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         while True:
-            # Run get_betfair_data in a separate thread
-            data = await loop.run_in_executor(executor, get_betfair_data, client)
-            print(f"Betfair data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
+            try:
+                # Run get_betfair_data in a separate thread
+                data = await loop.run_in_executor(executor, get_betfair_data, client)
+                print(f"Betfair data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
 
-            # Append data to CSV
-            if not data.empty:
-                data.to_csv(betfair_csv, mode='a', header=False, index=False)
+                # Append data to CSV
+                if not data.empty:
+                    data.to_csv(betfair_csv, mode='a', header=False, index=False)
+
+            except Exception as e:
+                print(f"Error fetching Betfair data: {e}")
+
+                # Attempt to re-login
+                try:
+                    client.login()
+                    print("Reconnected to Betfair API.")
+                except Exception as login_e:
+                    print(f"Error reconnecting to Betfair API: {login_e}")
+                    # Optionally, wait before retrying
+                    await asyncio.sleep(60)
+                    continue  # Retry the loop
 
             await asyncio.sleep(interval)
 

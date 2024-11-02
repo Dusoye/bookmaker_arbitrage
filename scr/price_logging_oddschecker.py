@@ -241,13 +241,27 @@ async def fetch_betfair_data_periodically(client, interval):
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         while True:
-            # Run get_betfair_data in a separate thread
-            data = await loop.run_in_executor(executor, get_betfair_data, client)
-            print(f"Betfair data fetched at {datetime.now(timezone.utc).isoformat()}")
+            try:
+                # Run get_betfair_data in a separate thread
+                data = await loop.run_in_executor(executor, get_betfair_data, client)
+                print(f"Betfair data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
 
-            # Append data to CSV
-            if not data.empty:
-                data.to_csv(betfair_csv, mode='a', header=False, index=False)
+                # Append data to CSV
+                if not data.empty:
+                    data.to_csv(betfair_csv, mode='a', header=False, index=False)
+
+            except Exception as e:
+                print(f"Error fetching Betfair data: {e}")
+
+                # Attempt to re-login
+                try:
+                    client.login()
+                    print("Reconnected to Betfair API.")
+                except Exception as login_e:
+                    print(f"Error reconnecting to Betfair API: {login_e}")
+                    # Optionally, wait before retrying
+                    await asyncio.sleep(60)
+                    continue  # Retry the loop
 
             await asyncio.sleep(interval)
 
@@ -346,14 +360,14 @@ def main():
     betfair_interval = 60      # Fetch Betfair data every 60 seconds
     polymarket_interval = 60   # Fetch Polymarket data every 60 seconds
     predictit_interval = 60    # Fetch PredictIt data every 60 seconds
-    oddschecker_interval = 60  # Fetch Oddschecker data every 60 seconds
+    oddschecker_interval = 300  # Fetch Oddschecker data every 60 seconds
 
     # Run all tasks in the asyncio event loop
     loop = asyncio.get_event_loop()
     tasks = [
-        fetch_polymarket_data_periodically(polymarket_interval),
-        fetch_betfair_data_periodically(client, betfair_interval),
-        fetch_predictit_data_periodically(predictit_interval),
+        #fetch_polymarket_data_periodically(polymarket_interval),
+        #fetch_betfair_data_periodically(client, betfair_interval),
+        #fetch_predictit_data_periodically(predictit_interval),
         fetch_oddschecker_data_periodically(oddschecker_interval, oddschecker_url, user_agent)
     ]
     try:
