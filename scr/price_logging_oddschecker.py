@@ -244,7 +244,7 @@ async def fetch_betfair_data_periodically(client, interval):
             try:
                 # Run get_betfair_data in a separate thread
                 data = await loop.run_in_executor(executor, get_betfair_data, client)
-                print(f"Betfair data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
+                print(f"Betfair data fetched at {datetime.now(timezone.utc).isoformat()}")
 
                 # Append data to CSV
                 if not data.empty:

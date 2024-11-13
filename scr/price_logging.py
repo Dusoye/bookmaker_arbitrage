@@ -1,6 +1,6 @@
 import json
 import asyncio
-import datetime
+from datetime import datetime, timezone
 import time
 import os
 import pandas as pd
@@ -21,7 +21,7 @@ def get_polymarket_data():
     market_data = []
     for market in response:
         overall_data = {
-            'timestamp': datetime.datetime.now(datetime.UTC).isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'market_id': market.get('id', 'N/A'),
             'market_name': market.get('title', 'N/A'),
             #'End Date': market.get('endDate', 'N/A'),
@@ -77,7 +77,7 @@ async def fetch_polymarket_data_periodically(interval):
         while True:
             # Run get_polymarket_data in a separate thread
             data = await loop.run_in_executor(executor, get_polymarket_data)
-            print(f"Polymarket data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
+            print(f"Polymarket data fetched at {datetime.now(timezone.utc).isoformat()}")
 
             # Append data to CSV
             if not data.empty:
@@ -113,7 +113,7 @@ def get_betfair_data(client):
                 if str(runner.selection_id) not in selection_ids:
                     continue 
                 runner_data = {
-                    'timestamp': datetime.datetime.now(datetime.UTC).isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'market_id': market.market_id,
                     'market_name': market.market_name,
                     'bet_id': runner.selection_id,
@@ -152,7 +152,7 @@ async def fetch_betfair_data_periodically(client, interval):
             try:
                 # Run get_betfair_data in a separate thread
                 data = await loop.run_in_executor(executor, get_betfair_data, client)
-                print(f"Betfair data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
+                print(f"Betfair data fetched at {datetime.now(timezone.utc).isoformat()}")
 
                 # Append data to CSV
                 if not data.empty:
@@ -194,7 +194,7 @@ def get_predictit_data():
         return pd.DataFrame()  # Return an empty DataFrame
 
     # Extract data
-    timestamp = datetime.datetime.now(datetime.UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     market_name = market_data.get('name', 'N/A')
     contracts = market_data.get('contracts', [])
 
@@ -240,7 +240,7 @@ async def fetch_predictit_data_periodically(interval):
         while True:
             # Run get_predictit_data in a separate thread
             data = await loop.run_in_executor(executor, get_predictit_data)
-            print(f"PredictIt data fetched at {datetime.datetime.now(datetime.UTC).isoformat()}")
+            print(f"PredictIt data fetched at {datetime.now(timezone.utc).isoformat()}")
 
             # Append data to CSV
             if not data.empty:
